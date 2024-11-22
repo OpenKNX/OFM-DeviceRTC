@@ -40,10 +40,11 @@ class i2cRTC
 class DeviceRTC : public OpenKNX::Module
 {
   public:
-    DeviceRTC();                     // Constructor
-    void begin();                    // Initialize the RTC
-    DateTime now();                  // Get the current time from the RTC
-    void adjust(const DateTime& dt); // Adjust the RTC to a new time
+    DeviceRTC();                                                  // Constructor
+    void begin();                                                 // Initialize the RTC
+    DateTime now();                                               // Get the current time from the RTC
+    void adjust(const DateTime& dt);                              // Adjust the RTC to a new time
+    inline bool isInitialized() { return _deviceRTCinitialized; } // Check if the RTC is initialized
 
     void init() override;                                                   // Initialize the module
     void setup(bool configured) override;                                   // Setup the module
@@ -59,6 +60,7 @@ class DeviceRTC : public OpenKNX::Module
     void logCurrentTime();                                                        // Log the current time from the RTC
     void setTime(const std::string& time);                                        // Set the time
     void setDate(const std::string& date);                                        // Set the date
+    time_t getTime();                                                             // Get the Unix time
 
 #ifdef ENABLE_TEMPERATURE
     float getTemperature(); // Get the temperature from the RTC
@@ -71,19 +73,19 @@ class DeviceRTC : public OpenKNX::Module
 #endif
 
 #ifdef ENABLE_ALARMS
-    DateTime getAlarm1();                                         // Get Alarm 1
-    DateTime getAlarm2();                                         // Get Alarm 2
-    void logAlarm1();                                             // Log Alarm 1
-    void logAlarm2();                                             // Log Alarm 2
-    inline bool checkAlarm1() { return rtc.alarmFired(1); }       // Check if Alarm 1 has triggered
-    inline bool checkAlarm2() { return rtc.alarmFired(2); }       // Check if Alarm 2 has triggered
-    inline void clearAlarm1() { rtc.clearAlarm(1); }              // Clear Alarm 1
-    inline void clearAlarm2() { rtc.clearAlarm(2); }              // Clear Alarm 2
+    DateTime getAlarm1();                                   // Get Alarm 1
+    DateTime getAlarm2();                                   // Get Alarm 2
+    void logAlarm1();                                       // Log Alarm 1
+    void logAlarm2();                                       // Log Alarm 2
+    inline bool checkAlarm1() { return rtc.alarmFired(1); } // Check if Alarm 1 has triggered
+    inline bool checkAlarm2() { return rtc.alarmFired(2); } // Check if Alarm 2 has triggered
+    inline void clearAlarm1() { rtc.clearAlarm(1); }        // Clear Alarm 1
+    inline void clearAlarm2() { rtc.clearAlarm(2); }        // Clear Alarm 2
     inline void clearAlarms()
     {
         clearAlarm1();
         clearAlarm2();
-    }                                                                                // Clear both alarms
+    } // Clear both alarms
     inline void disableAlarm1() { rtc.disableAlarm(1); }                             // Disable Alarm 1
     inline void disableAlarm2() { rtc.disableAlarm(2); }                             // Disable Alarm 2
     inline void setAlarm1(const DateTime& dt) { rtc.setAlarm1(dt, DS3231_A1_Date); } // Set Alarm 1
@@ -91,7 +93,8 @@ class DeviceRTC : public OpenKNX::Module
 #endif
 
   private:
-    RTC_DS3231 rtc; // RTC object
+    bool _deviceRTCinitialized = false; // Whether the RTC is initialized
+    RTC_DS3231 rtc;                     // RTC object
     // i2cRTC rtcI2C; // i2cRTC object
 };
 

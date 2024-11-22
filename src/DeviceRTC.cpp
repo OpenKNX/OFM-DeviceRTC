@@ -1,4 +1,5 @@
 #include "DeviceRTC.h"
+#include "TimeClockRTC.h"
 
 DeviceRTC openknxRTCModule;
 i2cRTC *rtcI2C = new i2cRTC();
@@ -70,6 +71,7 @@ DeviceRTC::DeviceRTC() : rtc() {}
  */
 void DeviceRTC::begin()
 {
+    if (_deviceRTCinitialized) return;
     if (!rtcI2C->initRTC())
     {
         logErrorP("RTC I2C initialization failed!");
@@ -81,11 +83,12 @@ void DeviceRTC::begin()
     if (!rtc.begin(rtcI2C->customI2C.get()))
     {
         // Error handling if the RTC cannot be initialized
-        logErrorP("RTC initialization failed!");
+        logErrorP("Device RTC initialization failed!");
     }
     else
     {
-        logInfoP("RTC initialized.");
+        _deviceRTCinitialized = true;
+        logInfoP("Device RTC initialized.");
     }
     if (rtc.lostPower())
     {
@@ -97,6 +100,11 @@ void DeviceRTC::begin()
     {
         logInfoP("RTC power OK.");
     }
+
+    // Setup the TimeClockRTC
+    OpenKNX::Time::TimeClock* timeClockRTC = new OpenKNX::Time::TimeClockRTC();
+    openknx.time.setTimeClock(*timeClockRTC, true);
+    logInfoP("TimeClockRTC set.");
 }
 
 /**
@@ -125,9 +133,13 @@ void DeviceRTC::adjust(const DateTime &dt)
  */
 void DeviceRTC::init()
 {
-    // Initialization code for OpenKNX
-    logInfoP("DeviceRTC initialized.");
-    return begin();
+    if(!_deviceRTCinitialized)
+    {
+      logInfoP("DeviceRTC initialize...");
+      return begin();
+    } else {
+      logInfoP("DeviceRTC already initialized.");
+    }
 }
 
 /**
@@ -180,7 +192,7 @@ bool DeviceRTC::processCommand(const std::string command, bool diagnose)
         }
         else if (command.compare(4, 3, "log") == 0) // rtc log
         {
-            
+
             logCurrentTime();
             bRet = true;
         }
@@ -243,7 +255,8 @@ bool DeviceRTC::processCommand(const std::string command, bool diagnose)
 #ifdef ENABLE_ALARMS
         else if (command.compare(4, 4, "sa1 ") == 0) // rtc sa1 HH:MM:SS DD:MM:YYYY
         {
-            uint8_t hour, minute, second, day, month; uint16_t year;
+            uint8_t hour, minute, second, day, month;
+            uint16_t year;
             if (sscanf(command.c_str() + 8, "%d:%d:%d %d:%d:%d", &hour, &minute, &second, &day, &month, &year) == 6)
             {
                 logInfoP("Setting Alarm 1: %02d:%02d:%02d %02d:%02d:%02d", hour, minute, second, day, month, year);
@@ -265,7 +278,8 @@ bool DeviceRTC::processCommand(const std::string command, bool diagnose)
         else if (command.compare(4, 4, "sa2 ") == 0) // rtc sa2 HH:MM:SS DD:MM:YYYY
         {
             // rtc sa2 HH:MM:SS DD:MM:YYYY
-            uint8_t hour, minute, second, day, month; uint16_t year;
+            uint8_t hour, minute, second, day, month;
+            uint16_t year;
             if (sscanf(command.c_str() + 8, "%d:%d:%d %d:%d:%d", &hour, &minute, &second, &day, &month, &year) == 6)
             {
                 logInfoP("Setting Alarm 2: %02d:%02d:%02d %02d.%02d.%02d", hour, minute, second, day, month, year);
@@ -434,6 +448,16 @@ void DeviceRTC::setDate(const std::string &date)
     }
 }
 
+/**
+ * @brief Read the current time from the RTC
+ * 
+ * @return time_t in Unix time format (seconds since 1970). i.e. 05.06.2025 00:00:01 = 1740000001
+ */
+time_t DeviceRTC::getTime()
+{
+    return rtc.now().unixtime();
+}
+
 #ifdef ENABLE_TEMPERATURE
 /**
  * @brief Get the temperature from the RTC
@@ -595,8 +619,8 @@ DateTime DeviceRTC::getAlarm1()
     {
         buffer[i] = rtcI2C->customI2C->read();
     }
-    //return DateTime(2000, 1, 1, BCD2DEC(buffer[2]), BCD2DEC(buffer[1]), BCD2DEC(buffer[0]));
-    return DateTime(BCD2DEC(buffer[6]) + 2000, BCD2DEC(buffer[5]), BCD2DEC(buffer[4]), BCD2DEC(buffer[2]), BCD2DEC(buffer[1]), BCD2DEC(buffer[0])); 
+    // return DateTime(2000, 1, 1, BCD2DEC(buffer[2]), BCD2DEC(buffer[1]), BCD2DEC(buffer[0]));
+    return DateTime(BCD2DEC(buffer[6]) + 2000, BCD2DEC(buffer[5]), BCD2DEC(buffer[4]), BCD2DEC(buffer[2]), BCD2DEC(buffer[1]), BCD2DEC(buffer[0]));
 }
 
 /**
@@ -627,7 +651,6 @@ DateTime DeviceRTC::getAlarm2()
     }
     // es soll auch das gesetzte datum und uhrzeit zurückgegeben werden
     return DateTime(BCD2DEC(buffer[6]) + 2000, BCD2DEC(buffer[5]), BCD2DEC(buffer[4]), BCD2DEC(buffer[2]), BCD2DEC(buffer[1]), BCD2DEC(buffer[0]));
-    
 }
 
 /**
