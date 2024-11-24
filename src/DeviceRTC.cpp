@@ -116,6 +116,7 @@ void DeviceRTC::begin()
     if (!rtcI2C->initRTC())
     {
         logErrorP("RTC I2C initialization failed!");
+        return;
     }
     else
     {
@@ -123,8 +124,8 @@ void DeviceRTC::begin()
     }
     if (!rtc.begin(rtcI2C->customI2C.get()))
     {
-        // Error handling if the RTC cannot be initialized
         logErrorP("Device RTC initialization failed!");
+        return;
     }
     else
     {
@@ -142,10 +143,10 @@ void DeviceRTC::begin()
         logInfoP("RTC power OK.");
     }
 
-    // Setup the TimeClockRTC
+    // TimeManager - Setup the RTC as the new time clock source
     OpenKNX::Time::TimeClock *timeClockRTC = new OpenKNX::Time::TimeClockRTC();
-    openknx.time.setTimeClock(*timeClockRTC, true);
-    logInfoP("TimeClockRTC set.");
+    openknx.time.setTimeClock(timeClockRTC, true);
+    logInfoP("TimeManager - TimeClock RTC set.");
 }
 
 /**
