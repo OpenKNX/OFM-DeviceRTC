@@ -1,3 +1,5 @@
+
+
 #include "DeviceRTC.h"
 
 namespace OpenKNX
@@ -13,8 +15,9 @@ namespace OpenKNX
             {
                 if (!openknxRTCModule.isInitialized())
                 {
-                    openknxRTCModule.setI2CSettings(OKNXHW_DEVICE_RTC_I2C_SCL, OKNXHW_DEVICE_RTC_I2C_SDA,
-                                                    OKNXHW_DEVICE_RTC_I2C_ADDRESS, OKNXHW_DEVICE_RTC_I2C_0_1);
+                    openknxRTCModule.setI2CSettings(OKNXHW_DEVICE_RTC_I2C_0_1, OKNXHW_DEVICE_RTC_I2C_SCL, OKNXHW_DEVICE_RTC_I2C_SDA,
+                                                    OKNXHW_DEVICE_RTC_I2C_ADDRESS,
+                                                    OKNXHW_DEVICE_RTC_EEPROM_I2C_ADDRESS , OKNXHW_REG2_HWRTC_I2C_EEPROM_SIZE);
                     openknxRTCModule.init();
                     if (openknxRTCModule.isInitialized()) _TimeClockRTC_isRunning = true;
                 } else _TimeClockRTC_isRunning = true;

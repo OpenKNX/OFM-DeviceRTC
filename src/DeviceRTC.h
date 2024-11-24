@@ -12,10 +12,6 @@
 #define ENABLE_EEPROM      // Enable external EEPROM
 #define ENABLE_ALARMS      // Enable alarms
 
-#ifdef ENABLE_EEPROM
-    #define EEPROM_SIZE 0x1000 // Define for DS3231 EEPROM size (4K, 0x000 to 0xFFF)
-#endif
-
 class i2cRTC
 {
   public:
@@ -24,10 +20,12 @@ class i2cRTC
 
     struct RTCSettings
     {
-        uint8_t i2cAddress = 0x68; // Default I2C address for DS3231
-        bool bIsi2c1 = false;      // true:i2c1 false:i2c0
-        pin_size_t sda = -1;       // SDA pin
-        pin_size_t scl = -1;       // SCL pin
+        uint8_t i2cAddress = 0x68;       // Default I2C address for DS3231
+        uint8_t i2cAddressEEPROM = 0x57; // Default I2C address for DS3231 EEPROM
+        uint16_t i2cEEPROMSize = 0x1000; // Default I2C EEPROM size for DS3231 (4096 bytes (4K), 0x000 to 0xFFF)
+        bool bIsi2c1 = false;            // true:i2c1 false:i2c0
+        pin_size_t sda = -1;             // SDA pin
+        pin_size_t scl = -1;             // SCL pin
     } rtcSettings;
 
     std::unique_ptr<TwoWire> customI2C; // Custom I2C object
@@ -35,6 +33,7 @@ class i2cRTC
     void setup();                       // Setup method for initialization
     bool initRTC();                     // Initialize the RTC
     bool initRTC(RTCSettings settings); // Initialize the RTC with custom settings
+    bool scanI2C(int8_t* devices);      // Scan the I2C bus for devices
 };
 
 class DeviceRTC : public OpenKNX::Module
@@ -55,12 +54,13 @@ class DeviceRTC : public OpenKNX::Module
     inline const std::string name() { return DeviceRTC_Display_Name; }       // Library name
     inline const std::string version() { return DeviceRTC_Display_Version; } // Library version
 
-    void setI2CSettings(uint8_t scl, uint8_t sda, uint8_t address, bool bIsi2c1); // Set I2C settings
-    void testRTC();                                                               // Test the RTC functionality
-    void logCurrentTime();                                                        // Log the current time from the RTC
-    void setTime(const std::string& time);                                        // Set the time
-    void setDate(const std::string& date);                                        // Set the date
-    time_t getTime();                                                             // Get the Unix time
+    void setI2CSettings(bool bIsi2c1, uint8_t scl, uint8_t sda, uint8_t address,
+                        uint8_t addresseeprom, uint16_t eepromSize); // Set I2C settings
+    void testRTC();                                                  // Test the RTC functionality
+    void logCurrentTime();                                           // Log the current time from the RTC
+    void setTime(const std::string& time);                           // Set the time
+    void setDate(const std::string& date);                           // Set the date
+    time_t getTime();                                                // Get the Unix time
 
 #ifdef ENABLE_TEMPERATURE
     float getTemperature(); // Get the temperature from the RTC
@@ -73,23 +73,48 @@ class DeviceRTC : public OpenKNX::Module
 #endif
 
 #ifdef ENABLE_ALARMS
-    DateTime getAlarm1();                                   // Get Alarm 1
-    DateTime getAlarm2();                                   // Get Alarm 2
-    void logAlarm1();                                       // Log Alarm 1
-    void logAlarm2();                                       // Log Alarm 2
-    inline bool checkAlarm1() { return rtc.alarmFired(1); } // Check if Alarm 1 has triggered
-    inline bool checkAlarm2() { return rtc.alarmFired(2); } // Check if Alarm 2 has triggered
-    inline void clearAlarm1() { rtc.clearAlarm(1); }        // Clear Alarm 1
-    inline void clearAlarm2() { rtc.clearAlarm(2); }        // Clear Alarm 2
-    inline void clearAlarms()
+    enum AlarmType
     {
-        clearAlarm1();
-        clearAlarm2();
-    } // Clear both alarms
-    inline void disableAlarm1() { rtc.disableAlarm(1); }                             // Disable Alarm 1
-    inline void disableAlarm2() { rtc.disableAlarm(2); }                             // Disable Alarm 2
-    inline void setAlarm1(const DateTime& dt) { rtc.setAlarm1(dt, DS3231_A1_Date); } // Set Alarm 1
-    inline void setAlarm2(const DateTime& dt) { rtc.setAlarm2(dt, DS3231_A2_Date); } // Set Alarm 2
+        Alarm1 = 1,
+        Alarm2 = 2
+    };
+    struct Alarm
+    {
+        AlarmType type;
+        uint8_t hour;
+        uint8_t minute;
+        uint8_t second; // Only for Alarm1
+        enum DayOfWeek
+        {
+            Sunday,
+            Monday,
+            Tuesday,
+            Wednesday,
+            Thursday,
+            Friday,
+            Saturday
+        } dayOfWeek;
+        struct AlarmMode
+        {
+            bool matchSeconds = false;   // On every second
+            bool matchMinutes = false;   // On every minute
+            bool matchHours = false;     // On every hour
+            bool matchDay = false;       // On every day
+            bool matchDayOfWeek = false; // On every day of week
+        } mode;
+        enum ControlStatus
+        {
+            AlarmEnabled = 0x00,
+            AlarmDisabled = 0x80
+        } controlStatus;
+    };
+
+    bool setAlarm(Alarm alarm);                                                 // Set an alarm
+    Alarm getAlarm(AlarmType type);                                              // Get alarm settings
+    void logAlarm(AlarmType type);                                               // Log the current alarm settings
+    inline bool checkAlarm(AlarmType type) { return rtc.alarmFired(type); } // Check if an alarm has triggered
+    inline void disableAlarm(AlarmType type) { rtc.disableAlarm(type); }    // Disable an alarm
+    bool checkAndClearAlarmStatus(AlarmType type);                               // Check if the alarm was triggered and clear the flag
 #endif
 
   private:
