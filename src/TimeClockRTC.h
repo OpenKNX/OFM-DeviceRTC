@@ -1,11 +1,14 @@
 #include "DeviceRTC.h"
+
 namespace OpenKNX
 {
     namespace Time
     {
+#ifndef ARDUINO_ARCH_SAMD
         class TimeClockRTC : public TimeClock
         {
             friend class DeviceRTC;
+
           public:
             inline void setup() override
             {
@@ -23,16 +26,18 @@ namespace OpenKNX
             inline void loop() override {}
             inline void setTime(time_t epoch, unsigned long millisReceivedTimestamp) override
             {
-                if (_TimeClockRTC_isRunning) openknxRTCModule.adjust(::DateTime(epoch));
+                if (_TimeClockRTC_isRunning)
+                {
+                    openknxRTCModule.adjust(::DateTime(epoch));
+                    struct timeval tv = {.tv_sec = epoch, .tv_usec = 0};
+                    settimeofday(&tv, nullptr);
+                }
             }
             inline time_t getTime() override
             {
-                if (_TimeClockRTC_isRunning)
-                {
-                    time_t now = openknxRTCModule.getTime();
-                    return now;
-                }
-                return 0;
+                if (_TimeClockRTC_isRunning) return openknxRTCModule.getTime();
+                else
+                    return 0;
             }
             inline bool isRunning() override
             {
@@ -42,5 +47,6 @@ namespace OpenKNX
           private:
             bool _TimeClockRTC_isRunning = false;
         }; // Class TimeClockRTC
+#endif // ARDUINO_ARCH_SAMD
     } // namespace Time
 } // namespace OpenKNX

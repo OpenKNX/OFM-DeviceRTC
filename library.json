@@ -5,7 +5,7 @@
   "homepage": "https://openknx.de",
   "authors": {
     "name": "Erkan Çolak",
-    "email": "erkan@colak.de",
+    "email": "erkan@çolak.de",
     "maintainer": true
   },
   "repository": {
@@ -13,6 +13,6 @@
     "url": "https://github.com/OpenKNX/OFM-HardwareRTC"
   },
   "dependencies": {
-    "adafruit/RTClib": "^1.14.1"
+    "adafruit/RTClib": "^2.1.4"
   }
 }

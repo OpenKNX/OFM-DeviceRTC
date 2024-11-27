@@ -6,7 +6,6 @@ i2cRTC *rtcI2C = new i2cRTC();
 
 /**
  * @brief Construct a new i2cRTC::i2cRTC object and initialize the RTC settings.
- *
  */
 i2cRTC::i2cRTC() : rtcSettings()
 {
@@ -20,7 +19,6 @@ i2cRTC::i2cRTC() : rtcSettings()
 
 /**
  * @brief Destroy the i2cRTC::i2cRTC object from the memory.
- *
  */
 i2cRTC::~i2cRTC()
 {
@@ -54,11 +52,9 @@ bool i2cRTC::initRTC(RTCSettings settings)
 
 /**
  * @brief Scans the I2C bus for devices.
- *
  * @param devices required to store the device addresses.
  *                Mark the end of the list with -1.
  * @return true if any devices are found
- *
  */
 bool i2cRTC::scanI2C(int8_t *devices)
 {
@@ -93,7 +89,6 @@ bool i2cRTC::scanI2C(int8_t *devices)
 
 /**
  * @brief Setup method for initialization
- *
  */
 void i2cRTC::setup()
 {
@@ -102,13 +97,11 @@ void i2cRTC::setup()
 
 /**
  * @brief Construct a new DeviceRTC::DeviceRTC object
- *
  */
 DeviceRTC::DeviceRTC() : rtc() {}
 
 /**
  * @brief Initialize the RTC
- *
  */
 void DeviceRTC::begin()
 {
@@ -151,7 +144,6 @@ void DeviceRTC::begin()
 
 /**
  * @brief Get the current time from the RTC
- *
  * @return DateTime
  */
 DateTime DeviceRTC::now()
@@ -161,7 +153,6 @@ DateTime DeviceRTC::now()
 
 /**
  * @brief Adjust the RTC to a new time
- *
  * @param dt New DateTime to set
  */
 void DeviceRTC::adjust(const DateTime &dt)
@@ -171,7 +162,6 @@ void DeviceRTC::adjust(const DateTime &dt)
 
 /**
  * @brief Initialize the module
- *
  */
 void DeviceRTC::init()
 {
@@ -188,7 +178,6 @@ void DeviceRTC::init()
 
 /**
  * @brief Setup the module
- *
  * @param configured Whether the module is configured
  */
 void DeviceRTC::setup(bool configured)
@@ -199,7 +188,6 @@ void DeviceRTC::setup(bool configured)
 
 /**
  * @brief Process input KO
- *
  * @param obj GroupObject to process
  */
 void DeviceRTC::processInputKo(GroupObject &obj)
@@ -210,7 +198,6 @@ void DeviceRTC::processInputKo(GroupObject &obj)
 
 /**
  * @brief Show help for console commands
- *
  */
 void DeviceRTC::showHelp()
 {
@@ -220,7 +207,6 @@ void DeviceRTC::showHelp()
 
 /**
  * @brief Process console commands
- *
  * @param command Command to process
  * @param diagnose Whether to diagnose the command
  */
@@ -249,20 +235,21 @@ bool DeviceRTC::processCommand(const std::string command, bool diagnose)
             logInfoP("Setting date: %s", command.substr(10).c_str());
             setDate(command.substr(10));
         }
-        else if (command.compare(4, 4, "time") == 0 || command.length() == 4) // rtc time
+        else if (command.compare(4, 4, "scan") == 0) // rtc scan
         {
-            logCurrentTime();
-        }
-        else if (command.compare(4, 6, "stime ") == 0) // rtc stime HH:MM:SS
-        {
-            logInfoP("Setting time: %s", command.substr(10).c_str());
-            setTime(command.substr(10));
-        }
-        else if (command.compare(4, 6, "sdate ") == 0) // rtc sdate DD:MM:YYYY
-        {
-            // rtc sdate DD:MM:YYYY
-            logInfoP("Setting date: %s", command.substr(10).c_str());
-            setDate(command.substr(10));
+            int8_t devices[128];
+            if (rtcI2C->scanI2C(devices))
+            {
+                logInfoP("I2C devices found:");
+                for (int i = 0; devices[i] != -1; i++)
+                {
+                    logInfoP("Device at address 0x%02X", devices[i]);
+                }
+            }
+            else
+            {
+                logErrorP("No I2C devices found.");
+            }
         }
 #ifdef ENABLE_TEMPERATURE
         else if (command.compare(4, 4, "temp") == 0) // rtc temp
@@ -306,39 +293,82 @@ bool DeviceRTC::processCommand(const std::string command, bool diagnose)
         }
 #endif // ENABLE_EEPROM
 #ifdef ENABLE_ALARMS
-        else if (command.compare(4, 3, "sa ") == 0) // rtc sa A HH:MM:SS DoW Mode
+        else if (command.compare(4, 3, "sa ") == 0) // rtc sa 1 2 12 12:12:12 12
         {
-            uint8_t alarmType, hour, minute, second, dow;
-            logInfoP("Command: %s", command.c_str() + 7);
-            const uint8_t retScanf = sscanf(command.c_str() + 8, "%hhu %hhu:%hhu:%hhu %hhu", &alarmType, &hour, &minute, &second, &dow);
-            logInfoP("retScanf: %d", retScanf);
-            if (retScanf == 5)
+            logDebugP("Command: %s", command.c_str() + 7);
+            uint8_t alarmType, dayOfWeek, dayOfMonth, hour, minute, second, alarmMode;
+            const uint8_t retScanf = sscanf(command.c_str() + 7, "%hhu %hhu %hhu %hhu:%hhu:%hhu %hhu",
+                                            &alarmType, &dayOfWeek, &dayOfMonth, &hour, &minute, &second, &alarmMode);
+            if (retScanf == 7)
             {
-                logInfoP("Setting Alarm %d: %02d:%02d:%02d DoW: %d", alarmType, hour, minute, second, dow);
+                logInfoP("Setting to set Alarm %d: %02d:%02d:%02d DoW: %d DoM: %d Mode: %d",
+                         alarmType, hour, minute, second, dayOfWeek, dayOfMonth, alarmMode);
+
                 DeviceRTC::Alarm alarm = {
                     .type = static_cast<DeviceRTC::AlarmType>(alarmType),
                     .hour = hour,
                     .minute = minute,
                     .second = second,
-                    .dayOfWeek = static_cast<DeviceRTC::Alarm::DayOfWeek>(dow),
-                    .mode = {
-                        .matchSeconds = true,
-                        .matchMinutes = true,
-                        .matchHours = true,
-                        .matchDay = true,
-                        .matchDayOfWeek = true}};
-                if (setAlarm(alarm)) logInfoP("Alarm set.");
+                    .dayOfMonth = dayOfMonth,
+                    .dayOfWeek = static_cast<DeviceRTC::Alarm::DayOfWeek>(dayOfWeek),
+                    .modeAlarm1 = (alarmType == 1) ? static_cast<Ds3231Alarm1Mode>(alarmMode) : Ds3231Alarm1Mode::DS3231_A1_Second, // Default to second
+                    .modeAlarm2 = (alarmType == 2) ? static_cast<Ds3231Alarm2Mode>(alarmMode) : Ds3231Alarm2Mode::DS3231_A2_Minute  // Default to minute
+                };
+
+                if (setAlarm(alarm))
+                    logInfoP("Alarm %d Set to: %02d:%02d:%02d DoW: %d DoM: %d Mode: %d",
+                             alarm.type, alarm.hour, alarm.minute, alarm.second,
+                             alarm.dayOfWeek, alarm.dayOfMonth, alarm.modeAlarm1);
                 else
                     logErrorP("Failed to set alarm.");
             }
-            else
+            else // Show help if the command is not correct
             {
-                logErrorP("Invalid date/time format. Use HH:MM:SS DoW Mode");
-                bRet = false;
+                logErrorP("Invalid Alarm command format.");
+                logErrorP("Use: rtc sa <AlarmType> <DayOfWeek> <dayOfMonth> <HH:MM:SS> <AlarmMode>");
+                openknx.logger.begin();
+                openknx.logger.color(CONSOLE_HEADLINE_COLOR);
+
+                // Allgemeine Hilfe
+                openknx.logger.log("rtc sa <AlarmType> <DayOfWeek> <DayOfMonth> <HH:MM:SS> <AlarmMode>");
+                openknx.logger.log("  AlarmType: 1 or 2 for Alarm1 or Alarm2");
+                openknx.logger.log("  DayOfWeek: 0-6 for Sunday to Saturday");
+                openknx.logger.log("  DayOfMonth: 1-31 or 0 for every day");
+                openknx.logger.log("  AlarmMode: Modes vary for Alarm1 and Alarm2");
+
+                // Alarm 1 Modi
+                openknx.logger.log("Alarm 1 Modes:");
+                openknx.logger.log("  15 Alarm once per second");
+                openknx.logger.log("  14 Alarm when seconds match");
+                openknx.logger.log("  12 Alarm when minutes and seconds match");
+                openknx.logger.log("   8 Alarm when hours, minutes and seconds match");
+                openknx.logger.log("   0 Alarm when date (day of month), hours, minutes and seconds match");
+                openknx.logger.log("  16 Alarm when day (day of week), hours, minutes and seconds match");
+
+                // Beispiel für Alarm 1
+                openknx.logger.log("Example: rtc sa 1 2 31 11:12:13 14");
+                openknx.logger.log("         (Alarm 1 when seconds match)");
+
+                // Alarm 2 Modi
+                openknx.logger.log("Alarm 2 Modes:");
+                openknx.logger.log("   7 Alarm once per minute (when seconds are 0)");
+                openknx.logger.log("   6 Alarm when minutes match");
+                openknx.logger.log("   4 Alarm when hours and minutes match");
+                openknx.logger.log("   0 Alarm when date (day of month), hours and minutes match");
+                openknx.logger.log("   8 Alarm when day (day of week), hours and minutes match");
+
+                // Beispiel für Alarm 2
+                openknx.logger.log("Example: rtc sa 2 1 0 23:30:00 6");
+                openknx.logger.log("         (Alarm 2 when minutes match)");
+
+                openknx.logger.color(0);
+                openknx.logger.end();
+                return true;
             }
         }
         else if (command.compare(4, 3, "ga ") == 0) // rtc ga 1
         {
+
             uint8_t alarm;
             const uint8_t retScanf = sscanf(command.c_str() + 7, "%hhu", &alarm);
             if (retScanf == 1)
@@ -346,44 +376,27 @@ bool DeviceRTC::processCommand(const std::string command, bool diagnose)
                 logInfoP("Getting Alarm %d", alarm);
                 logAlarm(static_cast<AlarmType>(alarm));
             }
+            else
+            {
+                // Show both alarm information if no alarm number is provided
+                logAlarm(static_cast<AlarmType>(1));
+                logAlarm(static_cast<AlarmType>(2));
+            }
+        }
+        else if (command.compare(4, 3, "clr") == 0) // rtc clr 1
+        {
+            uint8_t force = 0;
+            sscanf(command.c_str() + 7, "%hhu", &force);
+            std::function<void(AlarmType, const char *)> logAlarmStatus = [&](AlarmType type, const char *alarmName) {
+                if (checkAndClearAlarm(type, force == 1))
+                    logInfoP("%s was triggered and %s.", alarmName, force == 1 ? "cleared" : "not cleared");
+                else
+                    logInfoP("%s was not triggered.", alarmName);
+            };
+            logAlarmStatus(AlarmType::Alarm1, "Alarm 1");
+            logAlarmStatus(AlarmType::Alarm2, "Alarm 2");
         }
 
-        else if (command.compare(4, 3, "clr") == 0)
-        {
-            if (checkAndClearAlarmStatus(AlarmType::Alarm1))
-            {
-                logInfoP("Alarm 1 was triggered. Cleared.");
-            }
-            else
-            {
-                logInfoP("Alarm 1 was not triggered. Not cleared.");
-            }
-            if (checkAndClearAlarmStatus(AlarmType::Alarm2))
-            {
-                logInfoP("Alarm 2 was triggered. Cleared.");
-            }
-            else
-            {
-                logInfoP("Alarm 2 was not triggered. Not cleared.");
-            }
-        }
-        // rtc scan
-        else if (command.compare(4, 4, "scan") == 0)
-        {
-            int8_t devices[128];
-            if (rtcI2C->scanI2C(devices))
-            {
-                logInfoP("I2C devices found:");
-                for (int i = 0; devices[i] != -1; i++)
-                {
-                    logInfoP("Device at address 0x%02X", devices[i]);
-                }
-            }
-            else
-            {
-                logErrorP("No I2C devices found.");
-            }
-        }
 #endif // ENABLE_ALARMS
         else
         {
@@ -391,8 +404,8 @@ bool DeviceRTC::processCommand(const std::string command, bool diagnose)
             openknx.logger.log("");
             openknx.logger.color(CONSOLE_HEADLINE_COLOR);
             openknx.logger.log("======================= Help: Device RTC Control ===========================");
-            openknx.logger.color(0);
             openknx.logger.log("Command(s)               Description");
+            openknx.logger.color(0);
             openknx.console.printHelpLine("rtc time", "Show the current time from RTC");
             openknx.console.printHelpLine("rtc stime HH:MM:SS", "Set the time (24-hour format)");
             openknx.console.printHelpLine("rtc sdate DD:MM:YYYY", "Set the date");
@@ -405,11 +418,9 @@ bool DeviceRTC::processCommand(const std::string command, bool diagnose)
             openknx.console.printHelpLine("rtc eeprom", "Test internal EEPROM with read/write");
 #endif
 #ifdef ENABLE_ALARMS
-            openknx.console.printHelpLine("rtc sa1 HH:MM:SS DD:MM:YYYY", "Set Alarm 1 (hh:mm:ss dd:mm:yyyy)");
-            openknx.console.printHelpLine("rtc ga1", "Get Alarm 1");
-            openknx.console.printHelpLine("rtc sa2 HH:MM:SS DD:MM:YYYY", "Set Alarm 2 (hh:mm:ss dd:mm:yyyy)");
-            openknx.console.printHelpLine("rtc ga2", "Get Alarm 2");
-            openknx.console.printHelpLine("rtc clr", "Clear all alarms");
+            openknx.console.printHelpLine("rtc sa", "Set an alarm. Use 'sa ?' for more.");
+            openknx.console.printHelpLine("rtc ga <AlarmType>", "Show alarm 1 or 2 settings");
+            openknx.console.printHelpLine("rtc clr <force>", "Check and Clear the alarm flag!");
 #endif
             openknx.console.printHelpLine("rtc scan", "Scan the I2C bus for devices");
             openknx.console.printHelpLine("rtc test", "Will test if the RTC is running");
@@ -424,7 +435,6 @@ bool DeviceRTC::processCommand(const std::string command, bool diagnose)
 
 /**
  * @brief Set I2C settings
- *
  * @param scl SCL pin
  * @param sda SDA pin
  * @param address I2C address
@@ -444,43 +454,40 @@ void DeviceRTC::setI2CSettings(bool bIsi2c1, uint8_t scl, uint8_t sda, uint8_t a
 
 /**
  * @brief Test the RTC functionality
- *
  */
 void DeviceRTC::testRTC()
 {
     logInfoP("Testing RTC...");
     // Check if the RTC lost power
     DateTime now = rtc.now();
-    if (rtc.lostPower())
-    {
-        logErrorP("RTC lost power!");
-    }
+    if (rtc.lostPower()) logErrorP("RTC lost power!");
     else
-    {
         logInfoP("RTC power OK.");
-    }
     // Check if the RTC is running
-    if (!rtc.begin(rtcI2C->customI2C.get()))
-    {
-        logErrorP("RTC not running!");
-    }
+    if (!rtc.begin(rtcI2C->customI2C.get())) logErrorP("RTC not running!");
     else
-    {
         logInfoP("RTC running.");
-    }
+
+    logInfoP("Unixtime: %lu", rtc.now().unixtime());
     logInfoP("Current time: %02d:%02d:%02d", now.hour(), now.minute(), now.second());
     logInfoP("Current date: %02d-%02d-%02d", now.day(), now.month(), now.year());
-    logInfoP("Unixtime: %lu", rtc.now().unixtime());
     logInfoP("RTC square wave output: %s", rtc.readSqwPinMode() == DS3231_OFF ? "Off" : "On");
 #ifdef ENABLE_TEMPERATURE
     logInfoP("Temperature: %.2f C", rtc.getTemperature());
 #endif
+#ifdef ENABLE_EEPROM
+    logInfoP("EEPROM Size: %d bytes", rtcI2C->rtcSettings.i2cEEPROMSize);
+#endif
+#ifdef ENABLE_ALARMS
+    logAlarm(AlarmType::Alarm1);
+    logAlarm(AlarmType::Alarm2);
+#endif
+
     logInfoP("RTC test complete.");
 }
 
 /**
  * @brief Log the current time from the RTC
- *
  */
 void DeviceRTC::logCurrentTime()
 {
@@ -490,7 +497,6 @@ void DeviceRTC::logCurrentTime()
 
 /**
  * @brief Set the time
- *
  * @param time Time string in HH:MM:SS format
  */
 void DeviceRTC::setTime(const std::string &time)
@@ -511,7 +517,6 @@ void DeviceRTC::setTime(const std::string &time)
 
 /**
  * @brief Set the date
- *
  * @param date Date string in DD:MM:YYYY format
  */
 void DeviceRTC::setDate(const std::string &date)
@@ -532,7 +537,6 @@ void DeviceRTC::setDate(const std::string &date)
 
 /**
  * @brief Read the current time from the RTC
- *
  * @return time_t in Unix time format (seconds since 1970). i.e. 05.06.2025 00:00:01 = 1740000001
  */
 time_t DeviceRTC::getTime()
@@ -543,24 +547,16 @@ time_t DeviceRTC::getTime()
 #ifdef ENABLE_TEMPERATURE
 /**
  * @brief Get the temperature from the RTC
- *
  * @return float Temperature in Celsius
  */
 float DeviceRTC::getTemperature()
 {
     return rtc.getTemperature();
 }
-#endif
-
+#endif // ENABLE_TEMPERATURE
 #ifdef ENABLE_EEPROM
 /**
  * @brief Test the EEPROM functionality
- *        This will write and read data to/from the EEPROM and check for errors.
- *        - The test will write and read data from the first 256 bytes, the quarter mark,
- *          the half mark, and the last 256 bytes of the EEPROM.
- *        - The test will log the time taken to write and read the data, the total bytes written
- *          and read, and the write and read speeds.
- *        - The test will also check for errors in the data read back from the EEPROM.
  * @warning This test will overwrite data in the EEPROM!!
  */
 void DeviceRTC::testEEPROM()
@@ -641,7 +637,6 @@ void DeviceRTC::testEEPROM()
 
 /**
  * @brief Write data to the external EEPROM
- *
  * @param address EEPROM address to write to
  * @param data Data to write
  */
@@ -658,12 +653,11 @@ void DeviceRTC::writeEEPROM(uint16_t address, uint8_t data)
     rtcI2C->customI2C->write(data);
     rtcI2C->customI2C->endTransmission();
     delay(10); // EEPROM write delay
-    logDebugP("Written 0x%02X to EEPROM address 0x%04X", data, address);
+    //logDebugP("Written 0x%02X to EEPROM address 0x%04X", data, address);
 }
 
 /**
  * @brief Read data from the external EEPROM
- *
  * @param address EEPROM address to read from
  * @return uint8_t Data read from EEPROM
  */
@@ -682,7 +676,7 @@ uint8_t DeviceRTC::readEEPROM(uint16_t address)
     if (rtcI2C->customI2C->available())
     {
         uint8_t data = rtcI2C->customI2C->read();
-        logDebugP("Read 0x%02X from EEPROM address 0x%04X", data, address);
+        // logDebugP("Read 0x%02X from EEPROM address 0x%04X", data, address);
         return data;
     }
     else
@@ -694,136 +688,138 @@ uint8_t DeviceRTC::readEEPROM(uint16_t address)
 #endif // ENABLE_EEPROM
 
 #ifdef ENABLE_ALARMS
+
 /**
- * @brief Check if an alarm was triggered and clear the alarm status
- *
- * @param alarmType AlarmType (Alarm1 or Alarm2)
- * @return bool True if the alarm was triggered, false otherwise
+ * @brief Return the alarm information to the console
  */
 void DeviceRTC::logAlarm(AlarmType alarmType)
 {
+    if (alarmType != AlarmType::Alarm1 && alarmType != AlarmType::Alarm2)
+    {
+        logInfoP("Invalid alarm type: %d", alarmType);
+        return;
+    }
     Alarm alarm = getAlarm(alarmType);
-    logInfoP("Alarm %d Clock is set to: %02d:%02d:%02d", alarmType, alarm.hour, alarm.minute, alarm.second);
-    logInfoP("Alarm %d Settings:", alarmType);
-    logInfoP("  - Match Seconds: %s", alarm.mode.matchSeconds ? "Yes" : "No");
-    logInfoP("  - Match Minutes: %s", alarm.mode.matchMinutes ? "Yes" : "No");
-    logInfoP("  - Match Hours: %s", alarm.mode.matchHours ? "Yes" : "No");
-    logInfoP("  - Every Day: %s", alarm.mode.matchDay ? "Yes" : "No");
-    logInfoP("  - Every Day of Week: %s", alarm.mode.matchDayOfWeek ? "Yes" : "No");
-    logInfoP("  - Control Status: %s", alarm.controlStatus == Alarm::AlarmEnabled ? "Enabled" : "Disabled");
+
+    logInfoP("Setting Alarm : %d", alarmType);
+    String alarmMode = "";
+    if (alarmType == AlarmType::Alarm1)
+    {
+        logInfoP("Clock         : %02d:%02d:%02d (HH:MM:SS)", alarm.hour, alarm.minute, alarm.second);
+        if (alarm.modeAlarm1 == Ds3231Alarm1Mode::DS3231_A1_PerSecond) alarmMode += "PerSecond";
+        else if (alarm.modeAlarm1 == Ds3231Alarm1Mode::DS3231_A1_Second)
+            alarmMode += "Second";
+        else if (alarm.modeAlarm1 == Ds3231Alarm1Mode::DS3231_A1_Minute)
+            alarmMode += "Minute";
+        else if (alarm.modeAlarm1 == Ds3231Alarm1Mode::DS3231_A1_Hour)
+            alarmMode += "Hour";
+        else if (alarm.modeAlarm1 == Ds3231Alarm1Mode::DS3231_A1_Date)
+            alarmMode += "Date";
+        else if (alarm.modeAlarm1 == Ds3231Alarm1Mode::DS3231_A1_Day)
+            alarmMode += "Day";
+    }
+    else
+    {
+        logInfoP("Clock         : %02d:%02d", alarm.hour, alarm.minute);
+        if (alarm.modeAlarm2 == Ds3231Alarm2Mode::DS3231_A2_Minute) alarmMode += "Minute";
+        else if (alarm.modeAlarm2 == Ds3231Alarm2Mode::DS3231_A2_Hour)
+            alarmMode += "Hour";
+        else if (alarm.modeAlarm2 == Ds3231Alarm2Mode::DS3231_A2_Date)
+            alarmMode += "Date";
+        else if (alarm.modeAlarm2 == Ds3231Alarm2Mode::DS3231_A2_Day)
+            alarmMode += "Day";
+    }
+    // Day of Week is only used for Alarm1
+    const char *dayOfWeek[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+    logInfoP("Mode          : %s", alarmMode.c_str());
+    logInfoP("Day of Week   : %s", dayOfWeek[alarm.dayOfWeek]);
+    logInfoP("Day of Month  : %d", alarm.dayOfMonth);
+    logInfoP("Alarm Status  : %s", alarm.alarmEnabled ? "Triggered" : "Not Triggered");
 }
 
 /**
- * @brief Set an alarm (Alarm 1 or Alarm 2) using RTClib functions.
- *
- * @param type AlarmType (Alarm1 or Alarm2)
- * @param dt DateTime object containing the desired alarm time
- * @param mode Alarm mode (Ds3231Alarm1Mode or Ds3231Alarm2Mode)
- * @return bool True if the alarm was successfully set, false otherwise
+ * @brief Set the alarm to the given time and mode (Alarm1 or Alarm2)
+ * @param alarm Filled Alarm struct
+ * @return setAlarm from RTC
  */
 bool DeviceRTC::setAlarm(Alarm alarm)
 {
-    // Set default Alarm1 mode to seconds and enable the alarm. Alarm2 will be set to minutes only.
-    uint8_t mode = alarm.type == AlarmType::Alarm1 ? 0x00 : 0x00;
-    // Only Alarm1 supports seconds
     if (alarm.type == AlarmType::Alarm1)
     {
-        if (!alarm.mode.matchSeconds) mode |= 0x01; // Match seconds (A1M1)
-        if (!alarm.mode.matchMinutes) mode |= 0x02; // Match minutes (A1M2)
-        if (!alarm.mode.matchHours) mode |= 0x04;   // Match hours (A1M3)
-        if (!alarm.mode.matchDay) mode |= 0x08;     // Match Daily (A1M4)
-        if (!alarm.dayOfWeek) mode |= 0x10;         // Match only Day of week (A1M4)
-
-        // To use DateTime, Alarm does use the Year, Month, and Day values, so we need to set them to a valid date!!
-        DateTime dt = {rtc.now().year(), rtc.now().month(), rtc.now().day(), alarm.hour, alarm.minute, alarm.second};
-        return rtc.setAlarm1(dt, static_cast<Ds3231Alarm1Mode>(mode));
+        return rtc.setAlarm1(
+            DateTime(
+                rtc.now().year(),
+                rtc.now().month(),
+                ((alarm.modeAlarm1 == Ds3231Alarm1Mode::DS3231_A1_Day) ? alarm.dayOfWeek : alarm.dayOfMonth),
+                alarm.hour,
+                alarm.minute,
+                alarm.second),
+            alarm.modeAlarm1);
     }
-    // Alarm2 does not support seconds
-    else // Alarm2
+    else if (alarm.type == AlarmType::Alarm2)
     {
-        if (!alarm.mode.matchMinutes) mode |= 0x02; // Match minutes (A2M2)
-        if (!alarm.mode.matchHours) mode |= 0x04;   // Match hours (A2M3)
-        if (!alarm.mode.matchDay) mode |= 0x08;     // Match Daily (A2M4)
-        if (!alarm.dayOfWeek) mode |= 0x10;         // Match only Day of week (A2M4)
-
-        // Alarm does use the Year, Month, and Day values, so we need to set them to a valid date!!
-        DateTime dt = {rtc.now().year(), rtc.now().month(), rtc.now().day(), alarm.hour, alarm.minute, 0};
-        return rtc.setAlarm2(dt, static_cast<Ds3231Alarm2Mode>(mode));
+        return rtc.setAlarm2(
+            DateTime(
+                rtc.now().year(),
+                rtc.now().month(),
+                ((alarm.modeAlarm2 == Ds3231Alarm2Mode::DS3231_A2_Day) ? alarm.dayOfWeek : alarm.dayOfMonth),
+                alarm.hour,
+                alarm.minute, 0),
+            alarm.modeAlarm2);
     }
+
+    return false; // Return false if an unknown alarm type is passed
 }
 
 /**
- * @brief Get the alarm settings for Alarm1 or Alarm2
- *
+ * @brief Get the alarm settings
  * @param alarmType AlarmType (Alarm1 or Alarm2)
- * @return Alarm Alarm settings
+ * @return DeviceRTC::Alarm
  */
 DeviceRTC::Alarm DeviceRTC::getAlarm(AlarmType alarmType)
 {
-    // The rtc library does not provide a way to read the alarm settings
-    // directly from the RTC. We need to read the alarm registers manually.
-    // Alarm1 registers: 0x07 - 0x0B
-    // Alarm2 registers: 0x0B - 0x0D
-
-    uint8_t buffer[7]; // Read 7 bytes for Alarm1, 4 bytes for Alarm2
-    const uint8_t startAddress = (alarmType == AlarmType::Alarm1) ? 0x07 : 0x0B;
-
-    // Send request to read the alarm registers
-    rtcI2C->customI2C->beginTransmission(rtcI2C->rtcSettings.i2cAddress);
-    rtcI2C->customI2C->write(startAddress);
-    rtcI2C->customI2C->endTransmission();
-
-    rtcI2C->customI2C->requestFrom(rtcI2C->rtcSettings.i2cAddress, (alarmType == AlarmType::Alarm1) ? 7 : 4);
-    for (uint8_t i = 0; i < (alarmType == AlarmType::Alarm1) ? 7 : 4; i++)
+    if (alarmType != AlarmType::Alarm1 && alarmType != AlarmType::Alarm2)
     {
-        buffer[i] = rtcI2C->customI2C->read();
+        logInfoP("Invalid alarm type: %d", alarmType);
+        return {};
     }
-
     Alarm alarm;
-    // Extract the alarm time values from the buffer
-    alarm.second = (alarmType == AlarmType::Alarm1) ? BCD2DEC(buffer[0]) : 0;
-    alarm.minute = BCD2DEC(buffer[1]);
-    alarm.hour = BCD2DEC(buffer[2]);
-    alarm.dayOfWeek = (alarmType == AlarmType::Alarm1) ? static_cast<DeviceRTC::Alarm::DayOfWeek>(BCD2DEC(buffer[3])) : DeviceRTC::Alarm::DayOfWeek::Sunday;
-
-    // For Alarm1: Extract the alarm mask and control status
-    if (alarmType == 0) // Alarm1
+    if (alarmType == AlarmType::Alarm1)
     {
-        alarm.mode = {
-            .matchSeconds = !(buffer[4] & 0x01),  // A1M1
-            .matchMinutes = !(buffer[4] & 0x02),  // A1M2
-            .matchHours = !(buffer[4] & 0x04),    // A1M3
-            .matchDay = !(buffer[4] & 0x08),      // A1M4
-            .matchDayOfWeek = !(buffer[4] & 0x10) // A1M4
-
-        };
-        alarm.controlStatus = (buffer[5] & 0x80) ? Alarm::ControlStatus::AlarmEnabled : Alarm::ControlStatus::AlarmDisabled;
+        alarm.type = AlarmType::Alarm1;
+        alarm.hour = rtc.getAlarm1().hour();
+        alarm.minute = rtc.getAlarm1().minute();
+        alarm.second = rtc.getAlarm1().second();
+        alarm.dayOfMonth = rtc.getAlarm1().day();
+        alarm.dayOfWeek = static_cast<Alarm::DayOfWeek>(rtc.getAlarm1().dayOfTheWeek());
+        alarm.modeAlarm1 = rtc.getAlarm1Mode();
+        alarm.alarmEnabled = rtc.alarmFired(Alarm1);
     }
-    else // Alarm2
+    else
     {
-        alarm.mode = {
-            .matchMinutes = !(buffer[0] & 0x02),  // A2M2
-            .matchHours = !(buffer[0] & 0x04),    // A2M3
-            .matchDay = !(buffer[0] & 0x08),      // A2M4
-            .matchDayOfWeek = !(buffer[0] & 0x10) // A2M4
-        };
-        alarm.controlStatus = (buffer[1] & 0x80) ? Alarm::ControlStatus::AlarmEnabled : Alarm::ControlStatus::AlarmDisabled;
+        alarm.type = AlarmType::Alarm2;
+        alarm.hour = rtc.getAlarm2().hour();
+        alarm.minute = rtc.getAlarm2().minute();
+        alarm.second = 0;
+        alarm.dayOfMonth = rtc.getAlarm2().day();
+        alarm.dayOfWeek = static_cast<Alarm::DayOfWeek>(rtc.getAlarm2().dayOfTheWeek());
+        alarm.modeAlarm2 = rtc.getAlarm2Mode();
+        alarm.alarmEnabled = rtc.alarmFired(Alarm2);
     }
-
     return alarm;
 }
 
 /**
  * @brief Check if an alarm was triggered and clear the alarm status
- *
  * @param type AlarmType (Alarm1 or Alarm2)
+ * @param force Force clear the alarm status
  * @return bool True if the alarm was triggered, false otherwise
  */
-bool DeviceRTC::checkAndClearAlarmStatus(AlarmType type)
+bool DeviceRTC::checkAndClearAlarm(AlarmType type, bool force)
 {
     if (type == AlarmType::Alarm1)
     {
-        if (rtc.alarmFired(Alarm1))
+        if (rtc.alarmFired(Alarm1) || force)
         {
             rtc.clearAlarm(Alarm1);
             return true;
@@ -831,7 +827,7 @@ bool DeviceRTC::checkAndClearAlarmStatus(AlarmType type)
     }
     else
     {
-        if (rtc.alarmFired(Alarm2))
+        if (rtc.alarmFired(Alarm2) || force)
         {
             rtc.clearAlarm(Alarm2);
             return true;
