@@ -14,7 +14,7 @@ namespace OpenKNX
             {
                 if (!openknxRTCModule.isInitialized())
                 {
-                    openknxRTCModule.setI2CSettings(OKNXHW_DEVICE_RTC_I2C_0_1, OKNXHW_DEVICE_RTC_I2C_SCL, OKNXHW_DEVICE_RTC_I2C_SDA,
+                    openknxRTCModule.setI2CSettings(OKNXHW_DEVICE_RTC_I2C_INST, OKNXHW_DEVICE_RTC_I2C_SCL, OKNXHW_DEVICE_RTC_I2C_SDA,
                                                     OKNXHW_DEVICE_RTC_I2C_ADDRESS,
                                                     OKNXHW_DEVICE_RTC_EEPROM_I2C_ADDRESS, OKNXHW_REG2_HWRTC_I2C_EEPROM_SIZE);
                     openknxRTCModule.init();

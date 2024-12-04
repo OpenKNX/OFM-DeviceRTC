@@ -12,7 +12,7 @@ i2cRTC::i2cRTC() : rtcSettings()
     rtcSettings.i2cAddress = 0x68;       // Default I2C address for DS3231
     rtcSettings.i2cAddressEEPROM = 0x57; // Default I2C address for DS3231 EEPROM
     rtcSettings.i2cEEPROMSize = 0x1000;  // Default I2C EEPROM size for DS3231 (4096 bytes (4K), 0x000 to 0xFFF)
-    rtcSettings.bIsi2c1 = false;         // true:i2c1 false:i2c0
+    rtcSettings.i2cInst = nullptr;       // I2C instance (i2c0 or i2c1)
     rtcSettings.sda = -1;                // SDA pin
     rtcSettings.scl = -1;                // SCL pin
 }
@@ -31,11 +31,11 @@ i2cRTC::~i2cRTC()
  */
 bool i2cRTC::initRTC()
 {
-    if (rtcSettings.sda < 0 || rtcSettings.scl < 0)
+    if (rtcSettings.sda < 0 || rtcSettings.scl < 0 || rtcSettings.i2cInst == nullptr)
     {
-        return false; // SDA and SCL pins must be set
+        return false; // SDA and SCL and i2c instance must be set
     }
-    customI2C = std::make_unique<TwoWire>(rtcSettings.bIsi2c1 ? i2c1 : i2c0, rtcSettings.sda, rtcSettings.scl);
+    customI2C = std::make_unique<TwoWire>(rtcSettings.i2cInst, rtcSettings.sda, rtcSettings.scl);
     return true;
 }
 
@@ -435,11 +435,12 @@ bool DeviceRTC::processCommand(const std::string command, bool diagnose)
 
 /**
  * @brief Set I2C settings
+ * @param i2cInst I2C instance
  * @param scl SCL pin
  * @param sda SDA pin
  * @param address I2C address
  */
-void DeviceRTC::setI2CSettings(bool bIsi2c1, uint8_t scl, uint8_t sda, uint8_t address,
+void DeviceRTC::setI2CSettings(i2c_inst_t* i2cInst, uint8_t scl, uint8_t sda, uint8_t address,
                                uint8_t addresseeprom, uint16_t eepromSize)
 {
     i2cRTC::RTCSettings settings;
@@ -448,7 +449,7 @@ void DeviceRTC::setI2CSettings(bool bIsi2c1, uint8_t scl, uint8_t sda, uint8_t a
     settings.i2cAddress = address;
     settings.i2cAddressEEPROM = addresseeprom;
     settings.i2cEEPROMSize = eepromSize;
-    settings.bIsi2c1 = bIsi2c1;
+    settings.i2cInst = i2cInst;
     rtcI2C->initRTC(settings);
 }
 

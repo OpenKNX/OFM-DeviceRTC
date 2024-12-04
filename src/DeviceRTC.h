@@ -30,7 +30,7 @@ class i2cRTC
         uint8_t i2cAddress = 0x68;       // Default I2C address for DS3231
         uint8_t i2cAddressEEPROM = 0x57; // Default I2C address for DS3231 EEPROM
         uint16_t i2cEEPROMSize = 0x1000; // Default I2C EEPROM size for DS3231 (4096 bytes (4K), 0x000 to 0xFFF)
-        bool bIsi2c1 = false;            // true:i2c1 false:i2c0
+        i2c_inst_t* i2cInst = nullptr;   // I2C instance (i2c0 or i2c1)
         pin_size_t sda = -1;             // SDA pin
         pin_size_t scl = -1;             // SCL pin
     } rtcSettings;
@@ -50,9 +50,8 @@ class DeviceRTC : public OpenKNX::Module
 
     void begin();                                                    // Initialize the RTC
     inline bool isInitialized() { return _deviceRTCinitialized; }    // Check if the RTC is initialized
-    void setI2CSettings(bool bIsi2c1, uint8_t scl, uint8_t sda, uint8_t address,
+    void setI2CSettings(i2c_inst_t* i2cInst, uint8_t scl, uint8_t sda, uint8_t address,
                         uint8_t addresseeprom, uint16_t eepromSize); // Set I2C settings
-
     // OpenKNX Module methods
     void init() override;                                                    // Initialize the module
     void setup(bool configured) override;                                    // Setup the module
