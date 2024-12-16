@@ -22,7 +22,7 @@ i2cRTC::i2cRTC() : rtcSettings()
  */
 i2cRTC::~i2cRTC()
 {
-    customI2C.reset(); // Remove the I2C object from the memory
+    delete customI2C; // Remove the I2C object from the memory
 }
 
 /**
@@ -35,7 +35,7 @@ bool i2cRTC::initRTC()
     {
         return false; // SDA and SCL and i2c instance must be set
     }
-    customI2C = std::make_unique<TwoWire>(rtcSettings.i2cInst, rtcSettings.sda, rtcSettings.scl);
+    customI2C = new TwoWire(rtcSettings.i2cInst, rtcSettings.sda, rtcSettings.scl);
     return true;
 }
 
@@ -115,7 +115,7 @@ void DeviceRTC::begin()
     {
         logInfoP("RTC I2C initialized.");
     }
-    if (!rtc.begin(rtcI2C->customI2C.get()))
+    if (!rtc.begin(rtcI2C->customI2C))
     {
         logErrorP("Device RTC initialization failed!");
         return;
@@ -465,7 +465,7 @@ void DeviceRTC::testRTC()
     else
         logInfoP("RTC power OK.");
     // Check if the RTC is running
-    if (!rtc.begin(rtcI2C->customI2C.get())) logErrorP("RTC not running!");
+    if (!rtc.begin(rtcI2C->customI2C)) logErrorP("RTC not running!");
     else
         logInfoP("RTC running.");
 

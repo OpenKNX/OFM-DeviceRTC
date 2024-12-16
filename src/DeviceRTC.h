@@ -35,7 +35,7 @@ class i2cRTC
         pin_size_t scl = -1;             // SCL pin
     } rtcSettings;
 
-    std::unique_ptr<TwoWire> customI2C; // Custom I2C object
+    TwoWire* customI2C; // Custom I2C object
 
     void setup();                       // Setup method for initialization
     bool initRTC();                     // Initialize the RTC
@@ -48,8 +48,8 @@ class DeviceRTC : public OpenKNX::Module
   public:
     DeviceRTC();
 
-    void begin();                                                    // Initialize the RTC
-    inline bool isInitialized() { return _deviceRTCinitialized; }    // Check if the RTC is initialized
+    void begin();                                                 // Initialize the RTC
+    inline bool isInitialized() { return _deviceRTCinitialized; } // Check if the RTC is initialized
     void setI2CSettings(i2c_inst_t* i2cInst, uint8_t scl, uint8_t sda, uint8_t address,
                         uint8_t addresseeprom, uint16_t eepromSize); // Set I2C settings
     // OpenKNX Module methods
@@ -60,7 +60,7 @@ class DeviceRTC : public OpenKNX::Module
     bool processCommand(const std::string command, bool diagnose) override;  // Process console commands
     inline const std::string name() { return DeviceRTC_Display_Name; }       // Library name
     inline const std::string version() { return DeviceRTC_Display_Version; } // Library version
-    
+
     DateTime now();                        // Get the current time from the RTC
     void setTime(const std::string& time); // Set the time
     void setDate(const std::string& date); // Set the date
@@ -70,13 +70,13 @@ class DeviceRTC : public OpenKNX::Module
     void logCurrentTime();                 // Log the current time from the RTC
 #ifdef ENABLE_TEMPERATURE
     float getTemperature(); // Get the temperature from the RTC
-#endif  // ENABLE_TEMPERATURE
+#endif                      // ENABLE_TEMPERATURE
 
 #ifdef ENABLE_EEPROM
     void writeEEPROM(uint16_t address, uint8_t data); // Write data to the external EEPROM
     uint8_t readEEPROM(uint16_t address);             // Read data from the external EEPROM
     void testEEPROM();                                // Test the EEPROM functionality
-#endif  // ENABLE_EEPROM
+#endif                                                // ENABLE_EEPROM
 
 #ifdef ENABLE_ALARMS
     enum AlarmType
@@ -117,7 +117,7 @@ class DeviceRTC : public OpenKNX::Module
     bool checkAndClearAlarm(AlarmType type, bool force = false);              // Check if the alarm was triggered and clear the flag
     inline byte decToBcd(byte val) { return ((val / 10 * 16) + (val % 10)); } // Convert decimal to BCD
     inline int bcdToDec(byte val) { return ((val / 16 * 10) + (val % 16)); }  // Convert BCD to decimal
-#endif  // ENABLE_ALARMS
+#endif                                                                        // ENABLE_ALARMS
 
   private:
     bool _deviceRTCinitialized = false; // Whether the RTC is initialized
