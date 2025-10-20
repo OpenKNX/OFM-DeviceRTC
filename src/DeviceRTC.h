@@ -7,9 +7,15 @@
  * @copyright   Copyright (c) 2024, Erkan Çolak (erkan@çolak.de)
  *              Licensed under GNU GPL v3.0
  */
+#if defined(ARDUINO_ARCH_RP2040)
 #include <OpenKNX.h>
 #include <RTClib.h>
 #include <Wire.h>
+#include "hardware.h"
+
+#ifdef ARDUINO_ARCH_ESP32
+  #define i2c_inst_t TwoWire
+#endif
 
 #define DeviceRTC_Display_Name "DeviceRTC" // Display name
 #define DeviceRTC_Display_Version "0.0.1"  // Display version
@@ -126,3 +132,4 @@ class DeviceRTC : public OpenKNX::Module
 };
 
 extern DeviceRTC openknxRTCModule; // Declare the DeviceRTC object
+#endif // ARDUINO_ARCH_RP2040

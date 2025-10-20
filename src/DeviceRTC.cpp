@@ -1,3 +1,4 @@
+#if defined(ARDUINO_ARCH_RP2040) && defined(OKNXHW_REG2_DEVICE_RTC)
 #include "DeviceRTC.h"
 #include "TimeClockRTC.h"
 
@@ -837,3 +838,4 @@ bool DeviceRTC::checkAndClearAlarm(AlarmType type, bool force)
     return false;
 }
 #endif // ENABLE_ALARMS
+#endif 

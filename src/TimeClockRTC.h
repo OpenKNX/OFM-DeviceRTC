@@ -1,4 +1,6 @@
+#if defined(ARDUINO_ARCH_RP2040) && defined(OKNXHW_REG2_DEVICE_RTC)
 #include "DeviceRTC.h"
+#include "HardwareConfig.h"
 
 namespace OpenKNX
 {
@@ -50,3 +52,4 @@ namespace OpenKNX
 #endif // ARDUINO_ARCH_SAMD
     } // namespace Time
 } // namespace OpenKNX
+#endif // ARDUINO_ARCH_RP2040
